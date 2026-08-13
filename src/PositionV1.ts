@@ -5,10 +5,11 @@ import {
 	MintingHubV1PositionV1,
 	MintingHubV1Status,
 	PositionAggregatesV1,
+	PositionAggregatesV1History,
 } from 'ponder:schema';
-import { Address } from 'viem';
 import { and, eq, gt } from 'ponder';
 import { normalizeAddress } from './utils/format';
+import { ERC20ABI } from '@frankencoin/zchf';
 
 /*
 Events
@@ -83,6 +84,17 @@ ponder.on('PositionV1:MintingUpdate', async ({ event, context }) => {
 			updated: event.block.timestamp,
 		}));
 
+	// Flat history snapshot
+	await context.db
+		.insert(PositionAggregatesV1History)
+		.values({
+			chainId: context.chain.id,
+			updated: event.block.timestamp,
+			totalMinted,
+			annualInterests,
+		})
+		.onConflictDoUpdate(() => ({ totalMinted, annualInterests }));
+
 	// update minting counter
 	const status = await context.db
 		.insert(MintingHubV1Status)
@@ -123,9 +135,9 @@ ponder.on('PositionV1:MintingUpdate', async ({ event, context }) => {
 		]);
 
 		const [collateralName, collateralSymbol, collateralDecimals] = await Promise.all([
-			client.readContract({ abi: context.contracts.ERC20.abi, address: collateralAddress, functionName: 'name' }),
-			client.readContract({ abi: context.contracts.ERC20.abi, address: collateralAddress, functionName: 'symbol' }),
-			client.readContract({ abi: context.contracts.ERC20.abi, address: collateralAddress, functionName: 'decimals' }),
+			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'name' }),
+			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'symbol' }),
+			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'decimals' }),
 		]);
 
 		missingPositionData = {
@@ -244,26 +256,15 @@ ponder.on('PositionV1:MintingUpdate', async ({ event, context }) => {
 ponder.on('PositionV1:PositionDenied', async ({ event, context }) => {
 	const { client } = context;
 
-	const position = await context.db.find(MintingHubV1PositionV1, {
-		position: normalizeAddress(event.log.address),
-	});
-
-	const cooldown = await client.readContract({
-		abi: context.contracts.PositionV1.abi,
-		address: event.log.address,
-		functionName: 'cooldown',
-	});
+	const [position, cooldown] = await Promise.all([
+		context.db.find(MintingHubV1PositionV1, { position: normalizeAddress(event.log.address) }),
+		client.readContract({ abi: context.contracts.PositionV1.abi, address: event.log.address, functionName: 'cooldown' }),
+	]);
 
 	if (position) {
 		await context.db
-			.update(MintingHubV1PositionV1, {
-				position: normalizeAddress(event.log.address),
-			})
-			.set({
-				cooldown,
-				denied: true,
-				denyDate: event.block.timestamp,
-			});
+			.update(MintingHubV1PositionV1, { position: normalizeAddress(event.log.address) })
+			.set({ cooldown, denied: true, denyDate: event.block.timestamp });
 	}
 });
 

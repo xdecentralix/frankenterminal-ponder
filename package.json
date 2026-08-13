@@ -1,6 +1,6 @@
 {
 	"name": "@frankencoin/ponder",
-	"version": "0.3.3",
+	"version": "0.3.5",
 	"private": false,
 	"license": "MIT",
 	"scripts": {
@@ -11,22 +11,26 @@
 		"lint": "eslint .",
 		"eslint-config-ponder": "workspace:*",
 		"typecheck": "tsc",
+		"db:backup": "bash scripts/backup/db-dump.sh",
+		"db:restore": "bash scripts/backup/db-restore.sh",
 		"infra:up": "docker stack deploy -c stack.testing.yml frankencoin-ponder",
-		"infra:down": "docker stack remove frankencoin-ponder"
+		"infra:down": "docker stack remove frankencoin-ponder",
+		"postinstall": "patch-package"
 	},
 	"dependencies": {
 		"@frankencoin/zchf": "^0.3.21",
 		"hono": "^4.12.6",
-		"ponder": "0.15.18",
-		"viem": "^2.47.1"
+		"ponder": "^0.17.0",
+		"viem": "^2.55.11"
 	},
 	"devDependencies": {
 		"@types/node": "^25.4.0",
 		"@types/pg": "^8.20.0",
 		"eslint": "^9.39.4",
+		"patch-package": "^8.0.1",
 		"typescript": "^5.9.3"
 	},
 	"engines": {
-		"node": ">=18.14"
+		"node": ">=22"
 	}
 }

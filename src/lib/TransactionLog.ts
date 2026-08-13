@@ -1,9 +1,8 @@
-import { and, or, eq, gt, gte, inArray } from 'ponder';
+import { gte, inArray } from 'ponder';
 import { type Context } from 'ponder:registry';
-import { AnalyticTransactionLog, AnalyticDailyLog, CommonEcosystem, PositionAggregatesV1, PositionAggregatesV2 } from 'ponder:schema';
-import { EquityABI, FrankencoinABI, SavingsABI, SavingsV2ABI } from '@frankencoin/zchf';
-import { Address, parseEther, parseUnits } from 'viem';
-import { addr, config } from '../../ponder.config';
+import { AnalyticTransactionLog, AnalyticDailyLog, CommonEcosystem } from 'ponder:schema';
+import { EquityABI, FrankencoinABI } from '@frankencoin/zchf';
+import { addr } from '../../ponder.config';
 import { mainnet } from 'viem/chains';
 
 // Time constants for efficient date calculations using BigInt arithmetic
@@ -25,7 +24,17 @@ interface updateTransactionLogProps {
  * @dev: update transaction log for mainnet only
  * this function need a rebuild to reflect multichain data.
  */
-export async function updateTransactionLog({ client, db, chainId, blockNumber, timestamp, kind, amount, txHash }: updateTransactionLogProps) {
+export async function updateTransactionLog({
+	client,
+	db,
+	chainId,
+	blockNumber,
+	timestamp,
+	kind,
+	amount,
+	txHash,
+}: updateTransactionLogProps) {
+	if (process.env.ENABLE_TRANSACTION_LOG !== 'true') return;
 	if (chainId != mainnet.id) return;
 
 	const mainnetAddress = addr[mainnet.id];
@@ -34,8 +43,6 @@ export async function updateTransactionLog({ client, db, chainId, blockNumber, t
 	const ecosystemIds = [
 		'Equity:Profits',
 		'Equity:Losses',
-		'Equity:InvestedFeePaidPPM',
-		'Equity:RedeemedFeePaidPPM',
 		'Equity:EarningsPerFPS',
 		'Savings:TotalSaved',
 		'Savings:TotalInterestCollected',
@@ -50,60 +57,19 @@ export async function updateTransactionLog({ client, db, chainId, blockNumber, t
 	// Extract values with defaults
 	const totalInflow = ecosystemData.get('Equity:Profits') ?? 0n;
 	const totalOutflow = ecosystemData.get('Equity:Losses') ?? 0n;
-	const investedFeePaid = (ecosystemData.get('Equity:InvestedFeePaidPPM') ?? 0n) / 1_000_000n;
-	const redeemedFeePaid = (ecosystemData.get('Equity:RedeemedFeePaidPPM') ?? 0n) / 1_000_000n;
-	const totalTradeFee = investedFeePaid + redeemedFeePaid;
 	const earningsPerFPS = ecosystemData.get('Equity:EarningsPerFPS') ?? 0n;
+
 	const totalSaved = ecosystemData.get('Savings:TotalSaved') ?? 0n;
 	const totalInterestCollected = ecosystemData.get('Savings:TotalInterestCollected') ?? 0n;
 	const totalWithdrawn = ecosystemData.get('Savings:TotalWithdrawn') ?? 0n;
 	const totalSavings = totalSaved + totalInterestCollected - totalWithdrawn;
 
-	const mintHubV2Started = blockNumber >= BigInt(config[mainnet.id].startMintingHubV2);
-	const savingsReferalStarted = blockNumber >= BigInt(config[mainnet.id].startSavingsReferal);
-
 	// Fetch all on-chain reads and db lookups in parallel
-	const [totalSupply, totalEquity, fpsTotalSupply, fpsPrice, mintRatePPM, saveRatePPM, v1Agg, v2Agg] = await Promise.all([
-		client.readContract({ abi: FrankencoinABI, address: mainnetAddress.frankencoin, functionName: 'totalSupply' }),
+	const [totalEquity, fpsTotalSupply, fpsPrice] = await Promise.all([
 		client.readContract({ abi: FrankencoinABI, address: mainnetAddress.frankencoin, functionName: 'equity' }),
 		client.readContract({ abi: EquityABI, address: mainnetAddress.equity, functionName: 'totalSupply' }),
 		client.readContract({ abi: EquityABI, address: mainnetAddress.equity, functionName: 'price' }),
-		// Fetch mint lead rate from SavingsV2 (deployed at startMintingHubV2)
-		mintHubV2Started
-			? client.readContract({ abi: SavingsV2ABI, address: mainnetAddress.savingsV2, functionName: 'currentRatePPM' })
-			: Promise.resolve(0n),
-		// Fetch save lead rate from SavingsReferral (deployed at startSavingsReferal)
-		savingsReferalStarted
-			? client.readContract({ abi: SavingsABI, address: mainnetAddress.savingsReferral, functionName: 'currentRatePPM' })
-			: Promise.resolve(0n),
-		// Read V1 aggregates (O(1) instead of O(n))
-		db.find(PositionAggregatesV1, { chainId }),
-		// Read V2 aggregates (O(1) instead of O(n))
-		db.find(PositionAggregatesV2, { chainId }),
 	]);
-
-	// Fetch both mint lead rate (for V2 positions) and save lead rate (for savings)
-	const currentMintLeadRate: bigint = BigInt(mintRatePPM);
-	// Fallback: if SavingsReferral not yet deployed, use mint rate
-	const currentSaveLeadRate: bigint = savingsReferalStarted ? BigInt(saveRatePPM) : currentMintLeadRate;
-
-	const totalMintedV1 = v1Agg?.totalMinted ?? 0n;
-	const annualV1Interests = v1Agg?.annualInterests ?? 0n;
-	const totalMintedV2 = v2Agg?.totalMinted ?? 0n;
-	const annualV2Interests = v2Agg?.annualInterests ?? 0n;
-
-	// Calculate projected interests using save rate
-	let projectedInterests: bigint = 0n;
-	if (totalSavings > 0n && currentSaveLeadRate > 0) {
-		projectedInterests = (totalSavings * currentSaveLeadRate) / 1_000_000n;
-	}
-
-	// avg borrow interest
-	const annualV1BorrowRate = totalMintedV1 > 0n ? (annualV1Interests * parseEther('1')) / totalMintedV1 : 0n;
-	const annualV2BorrowRate = totalMintedV2 > 0n ? (annualV2Interests * parseEther('1')) / totalMintedV2 : 0n;
-
-	// net calc
-	const annualNetEarnings = annualV1Interests + annualV2Interests - projectedInterests;
 
 	// calc realized earnings, rolling latest 365days
 	// Use BigInt arithmetic to avoid unnecessary conversions
@@ -146,28 +112,13 @@ export async function updateTransactionLog({ client, db, chainId, blockNumber, t
 
 		totalInflow,
 		totalOutflow,
-		totalTradeFee,
 
-		totalSupply,
 		totalEquity,
 		totalSavings,
 
 		fpsTotalSupply,
 		fpsPrice,
 
-		totalMintedV1,
-		totalMintedV2,
-
-		currentMintLeadRate,
-		currentSaveLeadRate,
-		projectedInterests,
-		annualV1Interests,
-		annualV2Interests,
-
-		annualV1BorrowRate,
-		annualV2BorrowRate,
-
-		annualNetEarnings,
 		realizedNetEarnings,
 		earningsPerFPS,
 	});
@@ -184,28 +135,13 @@ export async function updateTransactionLog({ client, db, chainId, blockNumber, t
 
 		totalInflow,
 		totalOutflow,
-		totalTradeFee,
 
-		totalSupply,
 		totalEquity,
 		totalSavings,
 
 		fpsTotalSupply,
 		fpsPrice,
 
-		totalMintedV1,
-		totalMintedV2,
-
-		currentMintLeadRate,
-		currentSaveLeadRate,
-		projectedInterests,
-		annualV1Interests,
-		annualV2Interests,
-
-		annualV1BorrowRate,
-		annualV2BorrowRate,
-
-		annualNetEarnings,
 		realizedNetEarnings,
 		earningsPerFPS,
 	};

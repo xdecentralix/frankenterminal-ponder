@@ -1,8 +1,6 @@
 import { Event, type Context } from 'ponder:registry';
 import { ERC20Burn, ERC20Status, ERC20Mint, ERC20BalanceMapping, ERC20TotalSupply } from 'ponder:schema';
-import { Address, zeroAddress } from 'viem';
-import { updateTransactionLog } from './TransactionLog';
-import { ADDRESS, ChainMain } from '@frankencoin/zchf';
+import { zeroAddress } from 'viem';
 import { normalizeAddress, timestampStartOfDay } from '../utils/format';
 
 export async function indexERC20MintBurn(event: Event<'ERC20:Transfer'>, context: Context<'ERC20:Transfer'>) {
@@ -15,19 +13,6 @@ export async function indexERC20MintBurn(event: Event<'ERC20:Transfer'>, context
 
 	// format: in seconds, same as blockchain timestamp
 	const date = timestampStartOfDay(parseInt(String(updated)));
-
-	let frankencoinContract: Address = zeroAddress;
-	if (chainId == ChainMain.mainnet.id) {
-		frankencoinContract = ADDRESS[chainId].frankencoin;
-	} else {
-		frankencoinContract = ADDRESS[chainId].ccipBridgedFrankencoin;
-	}
-
-	const equityContract: Address = ADDRESS[ChainMain.mainnet.id].equity;
-
-	let kindContract: string = 'Token';
-	if (token === normalizeAddress(frankencoinContract)) kindContract = 'Frankencoin';
-	else if (token === normalizeAddress(equityContract)) kindContract = 'Equity';
 
 	// ### minting tokens ###
 	if (from == zeroAddress) {
@@ -93,18 +78,6 @@ export async function indexERC20MintBurn(event: Event<'ERC20:Transfer'>, context
 			.onConflictDoUpdate((current) => ({
 				mint: current.mint + value,
 			}));
-
-		// make transaction log entry
-		await updateTransactionLog({
-			client: context.client,
-			db: context.db,
-			chainId,
-			blockNumber: event.block.number,
-			timestamp: event.block.timestamp,
-			kind: `${kindContract}:Mint`,
-			amount: event.args.value,
-			txHash: event.transaction.hash,
-		});
 	}
 
 	// ### burning tokens ###
@@ -171,17 +144,5 @@ export async function indexERC20MintBurn(event: Event<'ERC20:Transfer'>, context
 			.onConflictDoUpdate((current) => ({
 				burn: current.burn ? current.burn + value : value,
 			}));
-
-		// make transaction log entry
-		await updateTransactionLog({
-			client: context.client,
-			db: context.db,
-			chainId,
-			blockNumber: event.block.number,
-			timestamp: event.block.timestamp,
-			kind: `${kindContract}:Burn`,
-			amount: event.args.value,
-			txHash: event.transaction.hash,
-		});
 	}
 }

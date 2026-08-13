@@ -1,50 +1,41 @@
-# Frankencoin Ponder
+# Frankencoin Ponder Indexer
 
-## Deployment of service
+Blockchain indexer for the Frankencoin (ZCHF) ecosystem. Indexes Ethereum mainnet + 7 L2s and exposes data via GraphQL.
 
--   Main branch should auto. deploy to: **ponder.frankencoin.com**
--   Test Deployment deploy to: **ponder.test.frankencoin.com**
+- Production: **ponder.frankencoin.com**
+- Test: **ponder.test.frankencoin.com**
 
-## Ponder needs .env.local
+## Setup
 
-check out ".env.local" file to adjust environment.
-For SQLite, REMOVE THE DATABASE_URL LINE.
-
-```
-# Select port (default: 3000) and profile
-PORT=42069
-PONDER_PROFILE=testnet
-
-# RPC URL used for fetching blockchain data. Alchemy is recommended.
-RPC_URL_MAINNET=https://eth-mainnet.g.alchemy.com/v2...
-RPC_URL_POLYGON=https://polygon-mainnet.g.alchemy.com/v2...
-
-# (Optional) Postgres database URL. If not provided, SQLite will be used.
-DATABASE_URL=
+```bash
+cp .env.example .env.local
+yarn install
+yarn dev
 ```
 
-## Config Files for Multichain Setup
+**.env.local** — required fields:
 
-Since Frankencoin transitioned to multichain and updated to the latest Ponder version, there are now two separate configuration files to manage mainnet and testnet deployments.
+```env
+ALCHEMY_RPC_KEY=your_key_here
 
-You can adjust the default chain settings as well as chain-specific parameters in either `ponder.config.mainnet.ts` or `ponder.config.testnet.ts`, depending on your deployment needs.Config Files for Multichain Setup\*\*
+# Optional: Postgres (omit to use SQLite)
+DATABASE_URL=postgres://...
 
-## Add / Adjust custom chain(s)
-
-Edit and add your custom chain: "ponder.chains.ts"
-
-Example:
-
+# Optional: analytics tables (disabled by default)
+ENABLE_TRANSACTION_LOG=false
 ```
-export const ethereum3 = {
-	id: 1337,
-	name: 'Ethereum3',
-	nativeCurrency: { name: 'Ethereum3', symbol: 'ETH3', decimals: 18 },
-	rpcUrls: {
-		default: { http: ['https://ethereum3.domain.com'] },
-	},
-	blockExplorers: {
-		default: { name: 'Blockscout', url: 'https://blockscout3.domain.com' },
-	},
-} as const satisfies Chain;
+
+## Commands
+
+```bash
+yarn dev          # development (live reload, no UI)
+yarn dev:ui       # development with Ponder UI
+yarn start        # production
+yarn codegen      # regenerate types after schema changes
+yarn typecheck    # TypeScript check
 ```
+
+## Docs
+
+See [CLAUDE.md](./CLAUDE.md) for architecture and development guidance.  
+See [INDEXER_SUMMARY.md](./INDEXER_SUMMARY.md) for full schema and table reference.

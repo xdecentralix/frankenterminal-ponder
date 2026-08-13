@@ -108,7 +108,7 @@ ponder.on('CCIPAdmin:ChainRemoved', async ({ event, context }) => {
 		.set({ active: false });
 });
 
-// Note: RateLimit ABI has inboundConfigs as 2nd param and outboundConfig as 3rd
+// Note: RateLimit ABI names are swapped vs token pool semantics — "inboundConfigs" is the outbound limiter and vice versa
 ponder.on('CCIPAdmin:RateLimit', async ({ event, context }) => {
 	const { remoteChain, inboundConfigs, outboundConfig } = event.args;
 	await context.db
@@ -118,22 +118,22 @@ ponder.on('CCIPAdmin:RateLimit', async ({ event, context }) => {
 			remoteChainSelector: BigInt(remoteChain),
 			active: true,
 			remoteTokenAddress: null,
-			outboundEnabled: outboundConfig.isEnabled,
-			outboundCapacity: outboundConfig.capacity,
-			outboundRate: outboundConfig.rate,
-			inboundEnabled: inboundConfigs.isEnabled,
-			inboundCapacity: inboundConfigs.capacity,
-			inboundRate: inboundConfigs.rate,
+			outboundEnabled: inboundConfigs.isEnabled,
+			outboundCapacity: inboundConfigs.capacity,
+			outboundRate: inboundConfigs.rate,
+			inboundEnabled: outboundConfig.isEnabled,
+			inboundCapacity: outboundConfig.capacity,
+			inboundRate: outboundConfig.rate,
 			rateLimitUpdatedAt: event.block.timestamp,
 			rateLimitTxHash: event.transaction.hash,
 		})
 		.onConflictDoUpdate(() => ({
-			outboundEnabled: outboundConfig.isEnabled,
-			outboundCapacity: outboundConfig.capacity,
-			outboundRate: outboundConfig.rate,
-			inboundEnabled: inboundConfigs.isEnabled,
-			inboundCapacity: inboundConfigs.capacity,
-			inboundRate: inboundConfigs.rate,
+			outboundEnabled: inboundConfigs.isEnabled,
+			outboundCapacity: inboundConfigs.capacity,
+			outboundRate: inboundConfigs.rate,
+			inboundEnabled: outboundConfig.isEnabled,
+			inboundCapacity: outboundConfig.capacity,
+			inboundRate: outboundConfig.rate,
 			rateLimitUpdatedAt: event.block.timestamp,
 			rateLimitTxHash: event.transaction.hash,
 		}));

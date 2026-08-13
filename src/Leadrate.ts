@@ -1,7 +1,5 @@
 import { ponder } from 'ponder:registry';
 import { SavingsStatus, LeadrateRateChanged, LeadRateProposed } from 'ponder:schema';
-import { Address, parseEther } from 'viem';
-import { updateTransactionLog } from './lib/TransactionLog';
 import { normalizeAddress } from './utils/format';
 
 /*
@@ -50,17 +48,6 @@ ponder.on('Leadrate:RateChanged', async ({ event, context }) => {
 		module,
 		txHash: event.transaction.hash,
 		approvedRate: newRate,
-	});
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:RateChanged',
-		amount: parseEther(newRate.toString()),
-		txHash: event.transaction.hash,
 	});
 });
 

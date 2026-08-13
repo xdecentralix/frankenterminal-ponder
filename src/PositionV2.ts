@@ -1,16 +1,18 @@
 import { ADDRESS, SavingsV2ABI } from '@frankencoin/zchf';
-import { ponder, type Context } from 'ponder:registry';
+import { ponder } from 'ponder:registry';
 import {
 	MintingHubV2MintingUpdateV2,
 	MintingHubV2OwnerTransfersV2,
 	MintingHubV2PositionV2,
 	MintingHubV2Status,
 	PositionAggregatesV2,
+	PositionAggregatesV2History,
 } from 'ponder:schema';
 import { mainnet } from 'viem/chains';
 import { and, eq, gt } from 'ponder';
 import { normalizeAddress } from './utils/format';
 import { resolvePositionOwner } from './utils/ownership';
+
 /*
 Events
 
@@ -93,6 +95,12 @@ ponder.on('PositionV2:MintingUpdate', async ({ event, context }) => {
 		.insert(PositionAggregatesV2)
 		.values({ chainId: context.chain.id, totalMinted, annualInterests, updated: event.block.timestamp })
 		.onConflictDoUpdate(() => ({ totalMinted, annualInterests, updated: event.block.timestamp }));
+
+	// Flat history snapshot
+	await context.db
+		.insert(PositionAggregatesV2History)
+		.values({ chainId: context.chain.id, updated: event.block.timestamp, totalMinted, annualInterests })
+		.onConflictDoUpdate(() => ({ totalMinted, annualInterests }));
 
 	const status = await context.db
 		.insert(MintingHubV2Status)

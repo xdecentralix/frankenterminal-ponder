@@ -2,7 +2,6 @@ import { LeadrateABI } from '@frankencoin/zchf';
 import { ponder } from 'ponder:registry';
 import { CommonEcosystem, SavingsActivity, SavingsMapping, SavingsStatus } from 'ponder:schema';
 import { Address } from 'viem';
-import { updateTransactionLog } from './lib/TransactionLog';
 import { normalizeAddress } from './utils/format';
 
 /*
@@ -109,17 +108,6 @@ ponder.on('SavingsV2:Saved', async ({ event, context }) => {
 		interest: mapping.interest,
 		balance: mapping.balance,
 	});
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:Saved',
-		amount: event.args.amount,
-		txHash: event.transaction.hash,
-	});
 });
 
 ponder.on('SavingsV2:InterestCollected', async ({ event, context }) => {
@@ -185,17 +173,6 @@ ponder.on('SavingsV2:InterestCollected', async ({ event, context }) => {
 		interest: mapping.interest,
 		balance: mapping.balance,
 	});
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:InterestCollected',
-		amount: event.args.interest,
-		txHash: event.transaction.hash,
-	});
 });
 
 ponder.on('SavingsV2:Withdrawn', async ({ event, context }) => {
@@ -260,16 +237,5 @@ ponder.on('SavingsV2:Withdrawn', async ({ event, context }) => {
 		withdraw: mapping.withdraw,
 		interest: mapping.interest,
 		balance: mapping.balance,
-	});
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:Withdrawn',
-		amount: event.args.amount,
-		txHash: event.transaction.hash,
 	});
 });

@@ -9,7 +9,6 @@ import {
 	SavingsStatus,
 } from 'ponder:schema';
 import { Address, zeroAddress } from 'viem';
-import { updateTransactionLog } from './lib/TransactionLog';
 import { normalizeAddress } from './utils/format';
 
 /*
@@ -134,17 +133,6 @@ ponder.on('SavingsReferral:Saved', async ({ event, context }) => {
 			referrer: normalizeAddress(referrer),
 			referrerFee,
 		}));
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:Saved',
-		amount: event.args.amount,
-		txHash: event.transaction.hash,
-	});
 });
 
 ponder.on('SavingsReferral:InterestCollected', async ({ event, context }) => {
@@ -247,17 +235,6 @@ ponder.on('SavingsReferral:InterestCollected', async ({ event, context }) => {
 				earnings: current.earnings + earnings,
 			}));
 	}
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:InterestCollected',
-		amount: event.args.interest,
-		txHash: event.transaction.hash,
-	});
 });
 
 ponder.on('SavingsReferral:Withdrawn', async ({ event, context }) => {
@@ -341,15 +318,4 @@ ponder.on('SavingsReferral:Withdrawn', async ({ event, context }) => {
 			referrer: normalizeAddress(referrer),
 			referrerFee,
 		}));
-
-	await updateTransactionLog({
-		client: context.client,
-		db: context.db,
-		chainId,
-		blockNumber: event.block.number,
-		timestamp: event.block.timestamp,
-		kind: 'Savings:Withdrawn',
-		amount: event.args.amount,
-		txHash: event.transaction.hash,
-	});
 });

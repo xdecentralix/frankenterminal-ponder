@@ -1,4 +1,4 @@
-import { createConfig, mergeAbis } from 'ponder';
+import { createConfig, factory, mergeAbis } from 'ponder';
 import { arbitrum, avalanche, base, gnosis, mainnet, optimism, polygon, sonic } from 'viem/chains';
 import { createPublicClient, erc20Abi, http } from 'viem';
 import {
@@ -228,11 +228,11 @@ export default createConfig({
 			// V1
 			chain: mainnet.name,
 			abi: PositionV1ABI,
-			address: {
+			address: factory({
 				address: addr[mainnet.id].mintingHubV1,
 				event: openPositionEventV1,
 				parameter: 'position',
-			},
+			}),
 			startBlock: config[mainnet.id].startMintingHubV1,
 		},
 		MintingHubV2: {
@@ -246,11 +246,11 @@ export default createConfig({
 			// V2
 			chain: mainnet.name,
 			abi: PositionV2ABI,
-			address: {
+			address: factory({
 				address: addr[mainnet.id].mintingHubV2,
 				event: openPositionEventV2,
 				parameter: 'position',
-			},
+			}),
 			startBlock: config[mainnet.id].startMintingHubV2,
 		},
 		SavingsV2: {

@@ -1,18 +1,15 @@
-import { ADDRESS, ERC20ABI, SavingsV2ABI } from '@frankencoin/zchf';
+import { ERC20ABI } from '@frankencoin/zchf';
 import { ponder } from 'ponder:registry';
 import {
 	CommonEcosystem,
 	MintingHubV2ChallengeBidV2,
 	MintingHubV2ChallengeV2,
-	MintingHubV2MintingUpdateV2,
-	MintingHubV2OwnerTransfersV2,
 	MintingHubV2PositionV2,
 	MintingHubV2Status,
 } from 'ponder:schema';
-import { decodeAbiParameters } from 'viem';
-import { mainnet } from 'viem/chains';
 import { normalizeAddress } from './utils/format';
-import { MINTING_UPDATE_TOPIC_V2, OWNERSHIP_TRANSFERRED_TOPIC, resolvePositionOwner } from './utils/ownership';
+import { resolvePositionOwner } from './utils/ownership';
+import { maxUint256 } from 'viem';
 
 /*
 Events
@@ -38,7 +35,6 @@ ponder.on('MintingHubV2:PositionOpened', async ({ event, context }) => {
 	const isOriginal: boolean = normalizeAddress(parent) === normalizeAddress(position);
 	const isClone: boolean = !isOriginal;
 	const closed: boolean = false;
-	const denied: boolean = false;
 
 	// ------------------------------------------------------------------
 	// CONST + COLLATERAL ERC20 + CHANGEABLE (all independent, fetch in parallel)
@@ -96,6 +92,8 @@ ponder.on('MintingHubV2:PositionOpened', async ({ event, context }) => {
 	// const priceAdjusted = price / BigInt(10 ** (36 - collateralDecimals));
 	const limitForPosition = (collateralBalance * price) / BigInt(10 ** zchfDecimals);
 	const availableForPosition = limitForPosition - minted;
+	// V2 deny() sets cooldown = type(uint40).max
+	const denied = BigInt(cooldown) === maxUint256;
 
 	// ------------------------------------------------------------------
 	// ------------------------------------------------------------------
