@@ -21,7 +21,7 @@ async function gql(url: string, query: string): Promise<any> {
 		body: JSON.stringify({ query }),
 	});
 	if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-	const json = await res.json();
+	const json = (await res.json()) as { data?: any; errors?: unknown };
 	if (json.errors) throw new Error(`GQL error: ${JSON.stringify(json.errors)}`);
 	return json.data;
 }
