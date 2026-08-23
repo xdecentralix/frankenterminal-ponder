@@ -1,7 +1,7 @@
 # Frankencoin Ponder Indexer — Summary
 
-**Last updated:** 2026-06-08  
-**Ponder:** 0.16.6 · **Viem:** 2.47.1 · **Package:** `@frankencoin/ponder` v0.3.3
+**Last updated:** 2026-08-23  
+**Ponder:** 0.16.6 · **Viem:** 2.47.1 · **Package:** `@frankencoin/ponder` v0.3.6
 
 ---
 
@@ -39,6 +39,10 @@ Production blockchain indexer for the Frankencoin (ZCHF) ecosystem. Indexes even
 - Uniswap V3 ZCHF/USDT price pool
 - CCIP Bridge Accounting
 
+**Mainnet + Optimism:**
+- UniswapAmplifier (`abis/UniswapAmplifier.ts`, vendored) — ZCHF minter for Uniswap v3 ZCHF/USD liquidity
+- AmplifiedPosition — EIP-1167 clones, factory-discovered from `AmplifiedPositionCreated` events
+
 **All 8 chains:**
 - Bridged Frankencoin (ERC20)
 - Bridged Savings / SavingsReferral
@@ -58,7 +62,7 @@ Position contracts are not deployed at a fixed address. Ponder discovers them dy
 
 ---
 
-## Schema (46 tables across 14 domains)
+## Schema (47 tables across 15 domains)
 
 ### Frankencoin Core
 `FrankencoinMinter`, `FrankencoinProfitLoss`
@@ -146,6 +150,19 @@ ZCHF price from Uniswap V3 ZCHF/USDT pool swaps on mainnet.
 
 ---
 
+### Amplifier (mainnet + Optimism)
+`AmplifierStatus`, `AmplifierPosition`, `AmplifierActivity`
+
+Event-sourced facts for the `UniswapAmplifier` minter and its `AmplifiedPosition` clones — **no valuations or pool prices** (the API derives position value from live `slot0()` reads).
+
+- `AmplifierStatus` — one row per amplifier per chain: immutables (`pool`, `usd`, `zchf`, `zchfIsToken0`, `expiration`, `limit`, `priceAnchorX96`), `totalBorrowed` (always **set** from the latest `Borrowed`/`Repaid` event, never accumulated), `positionCount`.
+- `AmplifierPosition` — one row per clone: `owner` (read at creation, updated on `OwnershipTransferred`), fixed `tickLow`/`tickHigh`, running `liquidity` and `borrowed` sums from `Mint`/`Burn` deltas.
+- `AmplifierActivity` — append-only `Mint`/`Burn` log with raw token amounts, ZCHF delta, amplifier-wide `totalBorrowed` after the event, and the tx `sender` (third parties for `expiredPublicBurn`). PK `(chainId, txHash, count)` with `count` = log index.
+
+Deployments: mainnet `0xa1304E5Aaf83CDB7c2b367F50B99Bb0647ED8C58` (ZCHF/USDT), Optimism `0x15CE921192ad967Eb65ea1cc508DfA21120F0d8F` (ZCHF/USDC). The expired mainnet test amplifier `0x560E4889e01f41612133Af0a363dD686534c2dA7` is deliberately not indexed.
+
+---
+
 ### Position Roller V2
 `RollerV2Rolled`
 
@@ -224,9 +241,10 @@ Uniswap V3 Pool:        19122801
 SavingsReferral:        22536327
 CCIP Bridge:            22623055
 TransferReference:      22678761
+UniswapAmplifier:       25795552
 ```
 
-L2 start blocks are in `ponder.config.ts` per chain.
+L2 start blocks are in `ponder.config.ts` per chain (Optimism `UniswapAmplifier`: `155811236`).
 
 ---
 
@@ -236,4 +254,5 @@ L2 start blocks are in `ponder.config.ts` per chain.
 - **Savings balances exclude real-time accrual.** Calculate off-chain or call the contract.
 - **Position tables store current state.** Use `MintingUpdateV{n}` for historical snapshots. `PositionAggregatesV{n}History` gives aggregate history.
 - **`context.client` is chain-locked.** Use the exported `mainnetClient` from `ponder.config.ts` for cross-chain reads inside handlers.
+- **`AmplifierPosition.liquidity` can undercount.** Liquidity donated by minting directly on the pool with a clone as recipient emits no event on the clone. Treat live `totalLiquidity()` as authoritative; the indexed value is a registry/fallback.
 - **Factory sync requires clean re-index** if the database was initialized with Ponder < 0.15.0 (the factory child-address bug). Local re-index from 0.16.6 always produces correct results.

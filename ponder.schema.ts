@@ -1,3 +1,4 @@
+export * from './schema/Amplifier';
 export * from './schema/BridgedAccounting';
 export * from './schema/CCIPAdmin';
 export * from './schema/Common';

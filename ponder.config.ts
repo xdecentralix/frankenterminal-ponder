@@ -19,6 +19,7 @@ import {
 	TransferReferenceABI,
 	CrossChainReferenceABI,
 } from '@frankencoin/zchf';
+import { AmplifiedPositionABI, UNISWAP_AMPLIFIER_ADDRESS, UniswapAmplifierABI } from './abis/UniswapAmplifier';
 
 export const addr = ADDRESS;
 
@@ -36,6 +37,7 @@ export const config = {
 		startSavingsReferal: 22536327,
 		startCCIP: 22623055,
 		startUniswapPoolV3: 19122801,
+		startAmplifier: 25795552, // UniswapAmplifier deploy block
 	},
 
 	// multichain support
@@ -62,6 +64,7 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~2s blocks
 		startBridgedFrankencoin: 136678320,
 		startSavingsReferal: 137404676,
+		startAmplifier: 155811236, // UniswapAmplifier deploy block
 	},
 	[base.id]: {
 		rpc: `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
@@ -108,6 +111,9 @@ if (openPositionEventV1 === undefined) throw new Error('openPositionEventV1 not 
 
 const openPositionEventV2 = MintingHubV2ABI.find((a) => a.type === 'event' && a.name === 'PositionOpened');
 if (openPositionEventV2 === undefined) throw new Error('openPositionEventV2 not found.');
+
+const amplifiedPositionCreatedEvent = UniswapAmplifierABI.find((a) => a.type === 'event' && a.name === 'AmplifiedPositionCreated');
+if (amplifiedPositionCreatedEvent === undefined) throw new Error('amplifiedPositionCreatedEvent not found.');
 
 export default createConfig({
 	chains: {
@@ -344,6 +350,43 @@ export default createConfig({
 				},
 			},
 		},
+		// ### AMPLIFIER (mainnet + optimism) ###
+		UniswapAmplifier: {
+			abi: UniswapAmplifierABI,
+			chain: {
+				[mainnet.name]: {
+					address: UNISWAP_AMPLIFIER_ADDRESS[mainnet.id],
+					startBlock: config[mainnet.id].startAmplifier,
+				},
+				[optimism.name]: {
+					address: UNISWAP_AMPLIFIER_ADDRESS[optimism.id],
+					startBlock: config[optimism.id].startAmplifier,
+				},
+			},
+		},
+		AmplifiedPosition: {
+			// EIP-1167 clones, factory-discovered from UniswapAmplifier:AmplifiedPositionCreated
+			abi: AmplifiedPositionABI,
+			chain: {
+				[mainnet.name]: {
+					address: factory({
+						address: UNISWAP_AMPLIFIER_ADDRESS[mainnet.id],
+						event: amplifiedPositionCreatedEvent,
+						parameter: 'position',
+					}),
+					startBlock: config[mainnet.id].startAmplifier,
+				},
+				[optimism.name]: {
+					address: factory({
+						address: UNISWAP_AMPLIFIER_ADDRESS[optimism.id],
+						event: amplifiedPositionCreatedEvent,
+						parameter: 'position',
+					}),
+					startBlock: config[optimism.id].startAmplifier,
+				},
+			},
+		},
+
 		// ### COMMON CONTRACTS ###
 		UniswapV3Pool: {
 			chain: mainnet.name,
