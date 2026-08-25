@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ponder-based blockchain indexer for Frankencoin (ZCHF). Indexes events from Ethereum mainnet and 7 L2s (Polygon, Arbitrum, Optimism, Base, Avalanche, Gnosis, Sonic) and exposes data via a GraphQL API.
 
+This is a **fork** of `Frankencoin-ZCHF/ponder` (`upstream`). Match upstream for schema, handlers, ABIs, and the `ponder` package version so `frankenterminal-api` / `frankenterminal-dapp` stay compatible. Sync with `git fetch upstream && git merge upstream/main`. Do not independently bump `ponder`.
+
+**Fork overlay only:** `railway.json` start command uses `--schema frankenterminal_v2` (Ponder 0.17 cannot reuse a 0.15 schema). Preserve that on merges.
+
 **Ponder version:** 0.17.0  
 **Deployments:** `ponder.frankencoin.com` (main) · `ponder.test.frankencoin.com` (test)
 
