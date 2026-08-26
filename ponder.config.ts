@@ -1,6 +1,6 @@
 import { createConfig, factory, mergeAbis } from 'ponder';
 import { arbitrum, avalanche, base, gnosis, mainnet, optimism, polygon, sonic } from 'viem/chains';
-import { createPublicClient, erc20Abi, http } from 'viem';
+import { createPublicClient, erc20Abi, http, zeroAddress } from 'viem';
 import {
 	ADDRESS,
 	CCIPAdminABI,
@@ -20,6 +20,9 @@ import {
 	CrossChainReferenceABI,
 } from '@frankencoin/zchf';
 import { AmplifiedPositionABI, UNISWAP_AMPLIFIER_ADDRESS, UniswapAmplifierABI } from './abis/UniswapAmplifier';
+// TODO: delete this import once @frankencoin/zchf exports FCS/MainnetVotes/BridgedVotes/MinterGovernance
+// ABIs (Phase 2 of the FCS rollout guideline) — import them from '@frankencoin/zchf' above instead.
+import { FCSABI, MainnetVotesABI, BridgedVotesABI, MinterGovernanceABI } from './src/abis/fcs';
 
 export const addr = ADDRESS;
 
@@ -38,6 +41,7 @@ export const config = {
 		startCCIP: 22623055,
 		startUniswapPoolV3: 19122801,
 		startAmplifier: 25795552, // UniswapAmplifier deploy block
+		startFCSGovernance: 22678761, // TODO: placeholder (reused from startTransferReference) — replace with actual FCS/MainnetVotes deploy block once deployed (Phase 1)
 	},
 
 	// multichain support
@@ -48,6 +52,7 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~2s blocks
 		startBridgedFrankencoin: 72384538,
 		startSavingsReferal: 72993144,
+		startFCSGovernance: 72993144, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 	[arbitrum.id]: {
 		rpc: `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
@@ -56,6 +61,7 @@ export const config = {
 		ethGetLogsBlockRange: 10000, // ~250ms blocks — batch more to reduce request count
 		startBridgedFrankencoin: 343470012,
 		startSavingsReferal: 349273896,
+		startFCSGovernance: 349273896, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 	[optimism.id]: {
 		rpc: `https://opt-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
@@ -65,6 +71,7 @@ export const config = {
 		startBridgedFrankencoin: 136678320,
 		startSavingsReferal: 137404676,
 		startAmplifier: 155811236, // UniswapAmplifier deploy block
+		startFCSGovernance: 137404676, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 	[base.id]: {
 		rpc: `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
@@ -73,6 +80,7 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~2s blocks
 		startBridgedFrankencoin: 31080190,
 		startSavingsReferal: 31809565,
+		startFCSGovernance: 31809565, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 	[avalanche.id]: {
 		// Public C-Chain RPC. Bloom/logs mismatches are handled in the ponder patch.
@@ -82,6 +90,7 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~2s blocks
 		startBridgedFrankencoin: 63337938,
 		startSavingsReferal: 64919925,
+		startFCSGovernance: 64919925, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 	[gnosis.id]: {
 		rpc: `https://gnosis-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
@@ -90,6 +99,7 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~5s blocks
 		startBridgedFrankencoin: 40394536,
 		startSavingsReferal: 40678291,
+		startFCSGovernance: 40678291, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 	[sonic.id]: {
 		rpc: `https://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
@@ -98,6 +108,7 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~500ms blocks
 		startBridgedFrankencoin: 31589491,
 		startSavingsReferal: 34961851,
+		startFCSGovernance: 34961851, // TODO: placeholder (reused from startSavingsReferal) — replace with actual BridgedVotes/MinterGovernance deploy block once deployed (Phase 1)
 	},
 };
 
@@ -223,6 +234,13 @@ export default createConfig({
 			abi: EquityABI,
 			address: addr[mainnet.id].equity,
 			startBlock: config[mainnet.id].startFrankencoin,
+		},
+		FCS: {
+			// mainnet-only ERC-4626 vault wrapping Equity 1:1 — NOT YET DEPLOYED (Phase 1 pending)
+			chain: mainnet.name,
+			abi: FCSABI, // TODO: replace with FCSABI from '@frankencoin/zchf' (Phase 2)
+			address: zeroAddress, // TODO: replace with addr[mainnet.id].fcs once deployed (Phase 1) and exported (Phase 2)
+			startBlock: config[mainnet.id].startFCSGovernance, // TODO: replace placeholder with actual FCS deploy block
 		},
 		MintingHubV1: {
 			// V1
@@ -387,6 +405,44 @@ export default createConfig({
 			},
 		},
 
+		MinterGovernance: {
+			// one instance per chain (all 8) — NOT YET DEPLOYED (Phase 1 pending)
+			abi: MinterGovernanceABI, // TODO: replace with @frankencoin/zchf export (Phase 2)
+			chain: {
+				[mainnet.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[mainnet.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[polygon.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[polygon.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[arbitrum.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[arbitrum.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[optimism.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[optimism.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[base.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[base.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[avalanche.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[avalanche.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[gnosis.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[gnosis.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[sonic.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[sonic.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+			},
+		},
 		// ### COMMON CONTRACTS ###
 		UniswapV3Pool: {
 			chain: mainnet.name,
@@ -399,7 +455,7 @@ export default createConfig({
 			abi: erc20Abi,
 			chain: {
 				[mainnet.name]: {
-					address: [addr[mainnet.id].frankencoin, addr[mainnet.id].equity],
+					address: [addr[mainnet.id].frankencoin, addr[mainnet.id].equity, zeroAddress], // TODO: replace zeroAddress with FCS address once deployed (Phase 1) and exported (Phase 2)
 					startBlock: config[mainnet.id].startFrankencoin,
 				},
 				[polygon.name]: {
@@ -470,6 +526,53 @@ export default createConfig({
 					address: addr[sonic.id].ccipAdmin,
 					startBlock: config[sonic.id].startBridgedFrankencoin,
 				},
+			},
+		},
+
+		// Note: MainnetVotes/BridgedVotes break this section's usual "all-multichain-map" pattern —
+		// MainnetVotes is single-instance mainnet-only (like Equity/FCS above), and BridgedVotes is the
+		// first contract in this codebase deployed on the 7 L2s with mainnet deliberately excluded.
+		MainnetVotes: {
+			// mainnet-only, single instance, CCIPSender (auto-deployed by FCS's constructor) — NOT YET DEPLOYED
+			chain: mainnet.name,
+			abi: MainnetVotesABI, // TODO: replace with @frankencoin/zchf export (Phase 2)
+			address: zeroAddress, // TODO: replace with addr[mainnet.id].mainnetVotes once deployed (Phase 1) and exported (Phase 2)
+			startBlock: config[mainnet.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+		},
+
+		BridgedVotes: {
+			// one instance per L2 (7 chains — NOT mainnet), CCIPReceiver — NOT YET DEPLOYED
+			abi: BridgedVotesABI, // TODO: replace with @frankencoin/zchf export (Phase 2)
+			chain: {
+				[polygon.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[polygon.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[arbitrum.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[arbitrum.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[optimism.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[optimism.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[base.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[base.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[avalanche.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[avalanche.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[gnosis.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[gnosis.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				[sonic.name]: {
+					address: zeroAddress, // TODO: replace with real address once deployed
+					startBlock: config[sonic.id].startFCSGovernance, // TODO: replace placeholder with actual deploy block
+				},
+				// no [mainnet.name] entry — BridgedVotes is not deployed on mainnet, see MainnetVotes above
 			},
 		},
 
