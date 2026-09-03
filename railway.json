@@ -4,7 +4,7 @@
 		"builder": "NIXPACKS"
 	},
 	"deploy": {
-		"startCommand": "node_modules/.bin/ponder start --schema frankenterminal_v2 --port $PORT",
+		"startCommand": "PONDER_EXPERIMENTAL_DB=platform node_modules/.bin/ponder start --schema frankenterminal_v2 --port $PORT",
 		"restartPolicyType": "ON_FAILURE",
 		"restartPolicyMaxRetries": 10
 	}
