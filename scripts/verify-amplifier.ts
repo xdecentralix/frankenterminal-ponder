@@ -166,6 +166,14 @@ async function compareDb(chainId: number, amplifier: Address, replay: Replay) {
 		amplifierActivitys(where: { chainId: ${chainId} }, limit: 1000) { items { txHash count position kind liquidity zchf totalBorrowed } }
 	}`);
 	const statuses = data.amplifierStatuss.items as any[];
+	// the status row is created lazily on the first event, so a chain without any amplifier activity has none
+	const chainUntouched = replay.positions.size === 0 && replay.activity.length === 0 && replay.totalBorrowed === 0n;
+	if (chainUntouched && statuses.length === 0) {
+		console.log('  OK   DB: no AmplifierStatus row, matching a chain without amplifier events');
+		check(data.amplifierPositions.items.length === 0, 'DB: no AmplifierPosition rows on untouched chain');
+		check(data.amplifierActivitys.items.length === 0, 'DB: no AmplifierActivity rows on untouched chain');
+		return;
+	}
 	check(statuses.length === 1 && statuses[0].address === amp, `DB: exactly one AmplifierStatus row for ${amp}`);
 	const s = statuses[0];
 	if (s) {
