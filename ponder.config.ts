@@ -57,7 +57,9 @@ export const config = {
 	[arbitrum.id]: {
 		rpc: `https://arb-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
 		maxRequestsPerSecond: parseInt(process.env.MAX_REQUESTS_PER_SECOND || '10'),
-		pollingInterval: parseInt(process.env.POLLING_INTERVAL_MS || '30000'),
+		// Ponder's realtime sync ingests at most 50 blocks per poll. Arbitrum produces ~4 blocks/s,
+		// so with a 30s poll (1.7 blocks/s ceiling) it falls behind permanently. 4s gives 12.5 blocks/s.
+		pollingInterval: Math.min(parseInt(process.env.POLLING_INTERVAL_MS || '30000'), 4000),
 		ethGetLogsBlockRange: 10000, // ~250ms blocks — batch more to reduce request count
 		startBridgedFrankencoin: 343470012,
 		startSavingsReferal: 349273896,
@@ -104,7 +106,8 @@ export const config = {
 	[sonic.id]: {
 		rpc: `https://sonic-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
 		maxRequestsPerSecond: parseInt(process.env.MAX_REQUESTS_PER_SECOND || '10'),
-		pollingInterval: parseInt(process.env.POLLING_INTERVAL_MS || '30000'),
+		// Sonic produces ~1-2 blocks/s, close to the 50-blocks-per-poll ceiling at 30s. 10s gives 5 blocks/s.
+		pollingInterval: Math.min(parseInt(process.env.POLLING_INTERVAL_MS || '30000'), 10000),
 		ethGetLogsBlockRange: 5000, // ~500ms blocks
 		startBridgedFrankencoin: 31589491,
 		startSavingsReferal: 34961851,
