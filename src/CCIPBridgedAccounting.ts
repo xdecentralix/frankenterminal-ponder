@@ -1,8 +1,5 @@
-import { ADDRESS } from '@frankencoin/zchf';
 import { ponder } from 'ponder:registry';
 import { CommonEcosystem, FrankencoinProfitLoss, BridgedAccountingReceivedSettlement } from 'ponder:schema';
-import { Address, erc20Abi, parseEther } from 'viem';
-import { mainnet } from 'viem/chains';
 import { updateTransactionLog } from './lib/TransactionLog';
 import { normalizeAddress } from './utils/format';
 
@@ -12,16 +9,15 @@ Events to correct accounting. P/L events emitted on sidechain and on sync, needs
 CCIPBridgedAccounting:ReceivedProfits
 CCIPBridgedAccounting:ReceivedLosses
 CCIPBridgedAccounting:ReceivedSettlement
+
+Note on EarningsPerFPS: the sidechain Profit/Loss event does not touch EarningsPerFPS (only mainnet
+events do), while the mainnet re-emission on sync already added the per-token delta. So only the
+Profits/Losses totals need to be deducted here; EarningsPerFPS must stay untouched and the flat
+FrankencoinProfitLoss row records a per-event delta of 0 (perFPS is a delta on every row).
 */
 
 ponder.on('CCIPBridgedAccounting:ReceivedProfits', async ({ event, context }) => {
 	const minter = normalizeAddress(event.log.address); // CCIPBridgedAccounting
-	const fpsTotalSupply = await context.client.readContract({
-		abi: erc20Abi,
-		address: ADDRESS[mainnet.id].equity,
-		functionName: 'totalSupply',
-	});
-	const perToken = (event.args.amount * parseEther('1')) / fpsTotalSupply;
 
 	// upsert ProfitLossCounter
 	const counter = await context.db
@@ -57,10 +53,7 @@ ponder.on('CCIPBridgedAccounting:ReceivedProfits', async ({ event, context }) =>
 		amount: current.amount + 0n, // neutral
 	}));
 
-	// upsert EarningsPerFPS
-	const earnings = await context.db.update(CommonEcosystem, { id: 'Equity:EarningsPerFPS' }).set((current) => ({
-		amount: current.amount - perToken, // deduct
-	}));
+	// EarningsPerFPS: neutral, already accounted for by the mainnet Profit event (see note above)
 
 	// flat indexing earnings
 	await context.db.insert(FrankencoinProfitLoss).values({
@@ -72,7 +65,7 @@ ponder.on('CCIPBridgedAccounting:ReceivedProfits', async ({ event, context }) =>
 		minter: minter,
 		profits: profits.amount,
 		losses: losses.amount,
-		perFPS: earnings.amount,
+		perFPS: 0n,
 	});
 
 	// update analytics
@@ -91,12 +84,6 @@ ponder.on('CCIPBridgedAccounting:ReceivedProfits', async ({ event, context }) =>
 ponder.on('CCIPBridgedAccounting:ReceivedLosses', async ({ event, context }) => {
 	const amount = event.args.losses;
 	const minter = normalizeAddress(event.log.address); // CCIPBridgedAccounting
-	const fpsTotalSupply = await context.client.readContract({
-		abi: erc20Abi,
-		address: ADDRESS[mainnet.id].equity,
-		functionName: 'totalSupply',
-	});
-	const perToken = -(amount * parseEther('1')) / fpsTotalSupply;
 
 	// upsert ProfitLossCounter
 	const counter = await context.db
@@ -132,10 +119,7 @@ ponder.on('CCIPBridgedAccounting:ReceivedLosses', async ({ event, context }) => 
 		amount: current.amount - amount, // deduct
 	}));
 
-	// upsert EarningsPerFPS
-	const earnings = await context.db.update(CommonEcosystem, { id: 'Equity:EarningsPerFPS' }).set((current) => ({
-		amount: current.amount - perToken, // deduct
-	}));
+	// EarningsPerFPS: neutral, already accounted for by the mainnet Loss event (see note above)
 
 	// flat indexing earnings
 	await context.db.insert(FrankencoinProfitLoss).values({
@@ -147,7 +131,7 @@ ponder.on('CCIPBridgedAccounting:ReceivedLosses', async ({ event, context }) => 
 		minter: minter,
 		profits: profits.amount,
 		losses: losses.amount,
-		perFPS: earnings.amount,
+		perFPS: 0n,
 	});
 
 	// update analytics
