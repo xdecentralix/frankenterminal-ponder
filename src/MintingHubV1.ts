@@ -51,9 +51,9 @@ ponder.on('MintingHubV1:PositionOpened', async ({ event, context }) => {
 		collateralSymbol,
 		collateralDecimals,
 		collateralBalance,
-		// TODO: Keep in mind for developer, "limitForClones" is "limit" from SC
+		// @dev: Keep in mind for developer, "limitForClones" is "limit" from SC
 		limitForClones,
-		// TODO: Keep in mind for developer, "availableForClones" is "limitForClones" from SC
+		// @dev: Keep in mind for developer, "availableForClones" is "limitForClones" from SC
 		availableForClones,
 		minted,
 		cooldown,

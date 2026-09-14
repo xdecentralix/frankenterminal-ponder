@@ -14,11 +14,10 @@
 		"db:backup": "bash scripts/backup/db-dump.sh",
 		"db:restore": "bash scripts/backup/db-restore.sh",
 		"infra:up": "docker stack deploy -c stack.testing.yml frankencoin-ponder",
-		"infra:down": "docker stack remove frankencoin-ponder",
-		"postinstall": "patch-package"
+		"infra:down": "docker stack remove frankencoin-ponder"
 	},
 	"dependencies": {
-		"@frankencoin/zchf": "^0.3.21",
+		"@frankencoin/zchf": "^0.3.30",
 		"hono": "^4.12.6",
 		"ponder": "^0.17.9",
 		"viem": "^2.55.11"
@@ -27,7 +26,6 @@
 		"@types/node": "^25.4.0",
 		"@types/pg": "^8.20.0",
 		"eslint": "^9.39.4",
-		"patch-package": "^8.0.1",
 		"typescript": "^5.9.3"
 	},
 	"engines": {

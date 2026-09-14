@@ -19,7 +19,7 @@
 
 import { createPublicClient, getAddress, http, parseAbiItem, type Address, type Chain, type Hex, type PublicClient, type Transport } from 'viem';
 import { mainnet, optimism } from 'viem/chains';
-import { AmplifiedPositionABI, UNISWAP_AMPLIFIER_ADDRESS, UniswapAmplifierABI } from '../abis/UniswapAmplifier';
+import { ADDRESS, AmplifiedPositionABI, UniswapAmplifierABI } from '@frankencoin/zchf';
 
 const PONDER_URL = process.env.PONDER_URL === undefined ? 'http://localhost:42069' : process.env.PONDER_URL;
 const ALCHEMY = process.env.ALCHEMY_RPC_KEY;
@@ -33,14 +33,14 @@ const TARGETS = [
 	{
 		chain: mainnet,
 		rpc: ALCHEMY ? `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY}` : process.env.RPC_MAINNET ?? 'https://ethereum-rpc.publicnode.com',
-		amplifier: UNISWAP_AMPLIFIER_ADDRESS[1] as Address,
+		amplifier: ADDRESS[mainnet.id].uniswapAmplifier,
 		startBlock: 25795552n,
 		expected: { limit: 2_500_000n * 10n ** 18n, expiration: 1806537599n },
 	},
 	{
 		chain: optimism,
 		rpc: ALCHEMY ? `https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY}` : process.env.RPC_OPTIMISM ?? 'https://optimism-rpc.publicnode.com',
-		amplifier: UNISWAP_AMPLIFIER_ADDRESS[10] as Address,
+		amplifier: ADDRESS[optimism.id].uniswapAmplifier,
 		startBlock: 155811236n,
 		expected: { limit: 1_000_000n * 10n ** 18n, expiration: 1806537599n },
 	},

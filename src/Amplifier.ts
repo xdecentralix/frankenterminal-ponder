@@ -1,7 +1,7 @@
 import { ponder } from 'ponder:registry';
 import { AmplifierActivity, AmplifierPosition, AmplifierStatus } from 'ponder:schema';
 import { Address, Hex } from 'viem';
-import { AmplifiedPositionABI, UniswapAmplifierABI } from '../abis/UniswapAmplifier';
+import { AmplifiedPositionABI, UniswapAmplifierABI } from '@frankencoin/zchf';
 import { normalizeAddress } from './utils/format';
 
 /*
