@@ -10,6 +10,7 @@ import {
 } from 'ponder:schema';
 import { mainnet } from 'viem/chains';
 import { and, eq, gt } from 'ponder';
+import { zeroOnRevert } from './utils/contract';
 import { normalizeAddress } from './utils/format';
 import { resolvePositionOwner } from './utils/ownership';
 
@@ -45,20 +46,25 @@ ponder.on('PositionV2:MintingUpdate', async ({ event, context }) => {
 	}
 
 	// @dev: https://github.com/Frankencoin-ZCHF/ponder/issues/28
+	// availableForClones also reverts when collateral.balanceOf reverts (time-locked tokens).
 	let availableForClones = 0n;
 	let availableForMinting = 0n;
 	if (position.isOriginal) {
-		availableForClones = await client.readContract({
-			abi: PositionV2.abi,
-			address: positionAddress,
-			functionName: 'availableForClones',
-		});
+		availableForClones = await client
+			.readContract({
+				abi: PositionV2.abi,
+				address: positionAddress,
+				functionName: 'availableForClones',
+			})
+			.catch(zeroOnRevert);
 	} else {
-		availableForMinting = await client.readContract({
-			abi: PositionV2.abi,
-			address: positionAddress,
-			functionName: 'availableForMinting',
-		});
+		availableForMinting = await client
+			.readContract({
+				abi: PositionV2.abi,
+				address: positionAddress,
+				functionName: 'availableForMinting',
+			})
+			.catch(zeroOnRevert);
 	}
 
 	const [cooldown, isClosed, baseRatePPM] = await Promise.all([

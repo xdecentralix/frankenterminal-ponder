@@ -7,6 +7,7 @@ import {
 	MintingHubV2PositionV2,
 	MintingHubV2Status,
 } from 'ponder:schema';
+import { zeroOnRevert } from './utils/contract';
 import { normalizeAddress } from './utils/format';
 import { resolvePositionOwner } from './utils/ownership';
 import { maxUint256 } from 'viem';
@@ -71,10 +72,11 @@ ponder.on('MintingHubV2:PositionOpened', async ({ event, context }) => {
 		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'name' }).catch(() => ''),
 		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'symbol' }).catch(() => ''),
 		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'decimals' }).catch(() => 18),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'balanceOf', args: [position] }),
+		// Time-locked/hostile collaterals can revert on balanceOf; availableForClones reads that balance.
+		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'balanceOf', args: [position] }).catch(zeroOnRevert),
 		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'price' }),
-		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForClones' }),
-		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForMinting' }),
+		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForClones' }).catch(zeroOnRevert),
+		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForMinting' }).catch(zeroOnRevert),
 		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'minted' }),
 		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'cooldown' }),
 	]);
@@ -101,8 +103,8 @@ ponder.on('MintingHubV2:PositionOpened', async ({ event, context }) => {
 	// If clone, update original position
 	if (isClone) {
 		const [originalAvailableForClones, originalAvailableForMinting] = await Promise.all([
-			client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForClones' }),
-			client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForMinting' }),
+			client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForClones' }).catch(zeroOnRevert),
+			client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForMinting' }).catch(zeroOnRevert),
 		]);
 
 		await context.db.update(MintingHubV2PositionV2, { position: normalizeAddress(original) }).set({
