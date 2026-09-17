@@ -7,7 +7,6 @@ import {
 	MintingHubV1PositionV1,
 	MintingHubV1Status,
 } from 'ponder:schema';
-import { zeroOnRevert } from './utils/contract';
 import { normalizeAddress } from './utils/format';
 import { maxUint256 } from 'viem';
 
@@ -67,10 +66,10 @@ ponder.on('MintingHubV1:PositionOpened', async ({ event, context }) => {
 		client.readContract({ abi: ERC20ABI, address: zchf, functionName: 'name' }),
 		client.readContract({ abi: ERC20ABI, address: zchf, functionName: 'symbol' }),
 		client.readContract({ abi: ERC20ABI, address: zchf, functionName: 'decimals' }),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'name' }).catch(() => ''),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'symbol' }).catch(() => ''),
+		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'name' }).catch(() => 'Unreadable'),
+		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'symbol' }).catch(() => '???'),
 		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'decimals' }).catch(() => 18),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'balanceOf', args: [position] }).catch(zeroOnRevert),
+		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'balanceOf', args: [position] }).catch(() => 0n),
 		client.readContract({ abi: PositionV1ABI, address: position, functionName: 'limit' }),
 		client.readContract({ abi: PositionV1ABI, address: position, functionName: 'limitForClones' }),
 		client.readContract({ abi: PositionV1ABI, address: position, functionName: 'minted' }),

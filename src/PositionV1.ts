@@ -135,9 +135,9 @@ ponder.on('PositionV1:MintingUpdate', async ({ event, context }) => {
 		]);
 
 		const [collateralName, collateralSymbol, collateralDecimals] = await Promise.all([
-			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'name' }),
-			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'symbol' }),
-			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'decimals' }),
+			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'name' }).catch(() => 'Unreadable'),
+			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'symbol' }).catch(() => '???'),
+			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'decimals' }).catch(() => 18),
 		]);
 
 		missingPositionData = {
