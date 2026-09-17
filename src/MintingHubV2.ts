@@ -7,7 +7,6 @@ import {
 	MintingHubV2PositionV2,
 	MintingHubV2Status,
 } from 'ponder:schema';
-import { zeroOnRevert } from './utils/contract';
 import { normalizeAddress, sanitizeDecimals, sanitizeText } from './utils/format';
 import { resolvePositionOwner } from './utils/ownership';
 import { readWithFallback } from './utils/rpc';
@@ -87,8 +86,19 @@ ponder.on('MintingHubV2:PositionOpened', async ({ event, context }) => {
 			'collateral.balanceOf'
 		),
 		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'price' }),
-		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForClones' }).catch(zeroOnRevert),
-		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForMinting' }).catch(zeroOnRevert),
+		// availableForClones() reads collateral.balanceOf(this) internally, and availableForMinting() on a
+		// clone delegates to the original's availableForClones(). A collateral that reverts on balanceOf
+		// makes both views revert, so they are treated as untrusted reads. Every other view is storage-only.
+		readWithFallback(
+			() => client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForClones' }),
+			0n,
+			'position.availableForClones'
+		),
+		readWithFallback(
+			() => client.readContract({ abi: PositionV2.abi, address: position, functionName: 'availableForMinting' }),
+			0n,
+			'position.availableForMinting'
+		),
 		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'minted' }),
 		client.readContract({ abi: PositionV2.abi, address: position, functionName: 'cooldown' }),
 	]);
@@ -114,9 +124,18 @@ ponder.on('MintingHubV2:PositionOpened', async ({ event, context }) => {
 	// ------------------------------------------------------------------
 	// If clone, update original position
 	if (isClone) {
+		// Same collateral dependency as above: these views revert if the family's collateral reverts on balanceOf.
 		const [originalAvailableForClones, originalAvailableForMinting] = await Promise.all([
-			client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForClones' }).catch(zeroOnRevert),
-			client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForMinting' }).catch(zeroOnRevert),
+			readWithFallback(
+				() => client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForClones' }),
+				0n,
+				'original.availableForClones'
+			),
+			readWithFallback(
+				() => client.readContract({ abi: PositionV2.abi, address: original, functionName: 'availableForMinting' }),
+				0n,
+				'original.availableForMinting'
+			),
 		]);
 
 		await context.db.update(MintingHubV2PositionV2, { position: normalizeAddress(original) }).set({

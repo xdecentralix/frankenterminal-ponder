@@ -73,9 +73,11 @@ function describe(error: unknown): string {
  * Rethrows if the failure is transient so that Ponder can retry or restart from its
  * checkpoint instead of persisting a fabricated value.
  *
- * Use this ONLY for reads on contracts the protocol does not control (collateral tokens,
- * third-party oracles). Reads on Frankencoin's own contracts should not be wrapped:
- * a revert there indicates a real bug and must surface.
+ * Use this for reads on contracts the protocol does not control (collateral tokens,
+ * third-party oracles), and for views on Frankencoin's own contracts that call into such
+ * a contract internally (PositionV2.availableForClones / availableForMinting read
+ * collateral.balanceOf). Storage-only views on Frankencoin's own contracts should not be
+ * wrapped: a revert there indicates a real bug and must surface.
  */
 export async function readWithFallback<T>(read: () => Promise<T>, fallback: T, label: string): Promise<T> {
 	try {
