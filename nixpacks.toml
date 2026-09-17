@@ -1,0 +1,4 @@
+# Railway's shared Yarn cache mount corrupts when two deploys install at once
+# (EEXIST / truncated package.json). Use an ephemeral cache instead.
+[phases.install]
+cmds = ["yarn install --frozen-lockfile --cache-folder /tmp/yarn-cache"]
