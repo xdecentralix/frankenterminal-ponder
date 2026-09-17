@@ -109,3 +109,5 @@ ponder.on('Contract:EventName', async ({ event, context }) => {
 - **Upserts:** `onConflictDoUpdate((current) => ({ field: current.field + delta }))` — current state is always passed as a callback argument, not read separately.
 - **Flat history tables** use `(chainId, updated)` as PK with `onConflictDoUpdate` to handle multiple events in the same block.
 - **Schema changes require `yarn codegen`** before TypeScript will accept the new types.
+- **Untrusted contract reads** (collateral tokens, third-party oracles) go through `readWithFallback()` from `src/utils/rpc.ts`, never a bare `.catch()`. It returns the fallback only for _permanent_ failures (revert, non-contract, undecodable return) and rethrows _transient_ ones (connectivity, rate limit, timeout) so Ponder retries or restarts from checkpoint instead of persisting a fabricated value. Reads on Frankencoin's own contracts stay unwrapped: a revert there is a bug and must surface.
+- **Sanitize untrusted strings and decimals** with `sanitizeText()` / `sanitizeDecimals()` from `src/utils/format.ts` before storing. Postgres rejects NUL bytes, and viem does not range-check `uint8`.

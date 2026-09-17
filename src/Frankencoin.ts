@@ -55,7 +55,7 @@ ponder.on('Frankencoin:Profit', async ({ event, context }) => {
 
 	let earningsPerFPS = { amount: 0n };
 	if (isMainnet) {
-		const perToken = (event.args.amount * parseEther('1')) / fpsTotalSupply;
+		const perToken = fpsTotalSupply > 0n ? (event.args.amount * parseEther('1')) / fpsTotalSupply : 0n;
 		earningsPerFPS.amount = perToken;
 
 		// upsert EarningsPerFPS
@@ -125,7 +125,7 @@ ponder.on('Frankencoin:Loss', async ({ event, context }) => {
 
 	let earningsPerFPS = { amount: 0n };
 	if (isMainnet) {
-		const perToken = -(event.args.amount * parseEther('1')) / fpsTotalSupply;
+		const perToken = fpsTotalSupply > 0n ? -(event.args.amount * parseEther('1')) / fpsTotalSupply : 0n;
 		earningsPerFPS.amount = perToken;
 
 		// upsert EarningsPerFPS

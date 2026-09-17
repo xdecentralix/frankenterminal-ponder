@@ -7,7 +7,8 @@ import {
 	MintingHubV1PositionV1,
 	MintingHubV1Status,
 } from 'ponder:schema';
-import { normalizeAddress } from './utils/format';
+import { normalizeAddress, sanitizeDecimals, sanitizeText } from './utils/format';
+import { readWithFallback } from './utils/rpc';
 import { maxUint256 } from 'viem';
 
 /*
@@ -66,10 +67,22 @@ ponder.on('MintingHubV1:PositionOpened', async ({ event, context }) => {
 		client.readContract({ abi: ERC20ABI, address: zchf, functionName: 'name' }),
 		client.readContract({ abi: ERC20ABI, address: zchf, functionName: 'symbol' }),
 		client.readContract({ abi: ERC20ABI, address: zchf, functionName: 'decimals' }),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'name' }).catch(() => 'Unreadable'),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'symbol' }).catch(() => '???'),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'decimals' }).catch(() => 18),
-		client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'balanceOf', args: [position] }).catch(() => 0n),
+		// Collateral is an arbitrary, untrusted ERC20. A permanent failure (revert, non-contract,
+		// undecodable return) falls back; a transient RPC failure propagates. See utils/rpc.ts.
+		readWithFallback(() => client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'name' }), 'Unreadable', 'collateral.name').then(
+			(v) => sanitizeText(v)
+		),
+		readWithFallback(() => client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'symbol' }), '???', 'collateral.symbol').then(
+			(v) => sanitizeText(v)
+		),
+		readWithFallback(() => client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'decimals' }), 18, 'collateral.decimals').then(
+			(v) => sanitizeDecimals(v)
+		),
+		readWithFallback(
+			() => client.readContract({ abi: ERC20ABI, address: collateral, functionName: 'balanceOf', args: [position] }),
+			0n,
+			'collateral.balanceOf'
+		),
 		client.readContract({ abi: PositionV1ABI, address: position, functionName: 'limit' }),
 		client.readContract({ abi: PositionV1ABI, address: position, functionName: 'limitForClones' }),
 		client.readContract({ abi: PositionV1ABI, address: position, functionName: 'minted' }),
@@ -347,7 +360,7 @@ ponder.on('MintingHubV1:ChallengeSucceeded', async ({ event, context }) => {
 	}
 
 	// Keep as bigint throughout calculations to preserve precision
-	const _price = (event.args.bid * BigInt(10 ** 18)) / event.args.challengeSize;
+	const _price = event.args.challengeSize > 0n ? (event.args.bid * BigInt(10 ** 18)) / event.args.challengeSize : 0n;
 
 	// create ChallengeBidV1 entry
 	await context.db.insert(MintingHubV1ChallengeBidV1).values({

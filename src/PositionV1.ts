@@ -8,7 +8,8 @@ import {
 	PositionAggregatesV1History,
 } from 'ponder:schema';
 import { and, eq, gt } from 'ponder';
-import { normalizeAddress } from './utils/format';
+import { normalizeAddress, sanitizeDecimals, sanitizeText } from './utils/format';
+import { readWithFallback } from './utils/rpc';
 import { ERC20ABI } from '@frankencoin/zchf';
 
 /*
@@ -135,9 +136,22 @@ ponder.on('PositionV1:MintingUpdate', async ({ event, context }) => {
 		]);
 
 		const [collateralName, collateralSymbol, collateralDecimals] = await Promise.all([
-			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'name' }).catch(() => 'Unreadable'),
-			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'symbol' }).catch(() => '???'),
-			client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'decimals' }).catch(() => 18),
+			// Collateral is an arbitrary, untrusted ERC20. See utils/rpc.ts for the permanent/transient split.
+			readWithFallback(
+				() => client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'name' }),
+				'Unreadable',
+				'collateral.name'
+			).then((v) => sanitizeText(v)),
+			readWithFallback(
+				() => client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'symbol' }),
+				'???',
+				'collateral.symbol'
+			).then((v) => sanitizeText(v)),
+			readWithFallback(
+				() => client.readContract({ abi: ERC20ABI, address: collateralAddress, functionName: 'decimals' }),
+				18,
+				'collateral.decimals'
+			).then((v) => sanitizeDecimals(v)),
 		]);
 
 		missingPositionData = {
