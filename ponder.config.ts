@@ -72,7 +72,8 @@ export const config = {
 		startSavingsReferal: 31809565,
 	},
 	[avalanche.id]: {
-		rpc: `https://avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
+		// Alchemy's C-Chain eth_getLogs disagrees with logsBloom and crashes the indexer.
+		rpc: 'https://api.avax.network/ext/bc/C/rpc',
 		maxRequestsPerSecond: parseInt(process.env.MAX_REQUESTS_PER_SECOND || '10'),
 		pollingInterval: parseInt(process.env.POLLING_INTERVAL_MS || '30000'),
 		ethGetLogsBlockRange: 5000, // ~2s blocks
