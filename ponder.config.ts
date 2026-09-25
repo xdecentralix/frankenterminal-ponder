@@ -72,7 +72,7 @@ export const config = {
 		startSavingsReferal: 31809565,
 	},
 	[avalanche.id]: {
-		// Alchemy's C-Chain eth_getLogs disagrees with logsBloom and crashes the indexer.
+		// Public C-Chain RPC. Bloom/logs mismatches are handled in the ponder patch.
 		rpc: 'https://api.avax.network/ext/bc/C/rpc',
 		maxRequestsPerSecond: parseInt(process.env.MAX_REQUESTS_PER_SECOND || '10'),
 		pollingInterval: parseInt(process.env.POLLING_INTERVAL_MS || '30000'),
