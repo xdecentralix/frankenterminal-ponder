@@ -27,6 +27,21 @@ import {
 	UniswapV3PoolABI,
 } from '@frankencoin/zchf';
 
+// Ponder logs "Indexed block" at info level for every realtime block (~4/s on Arbitrum) and offers no per-message
+// filter. Its pretty logger writes through the global console.log, so drop the lines for blocks without events here.
+// Lives in the config (not src/) on purpose: src/ file contents feed Ponder's build ID, this file's code does not.
+// Set LOG_EMPTY_BLOCKS=true to restore.
+const LOG_FILTER_INSTALLED = Symbol.for('frankencoin.ponder.logFilter');
+if (process.env.LOG_EMPTY_BLOCKS !== 'true' && !(globalThis as Record<symbol, unknown>)[LOG_FILTER_INSTALLED]) {
+	(globalThis as Record<symbol, unknown>)[LOG_FILTER_INSTALLED] = true;
+	const log = console.log.bind(console);
+	const emptyBlock = /Indexed block.*\bevent_count=0(?!\d)/;
+	console.log = (...args: unknown[]) => {
+		if (typeof args[0] === 'string' && emptyBlock.test(args[0])) return;
+		log(...args);
+	};
+}
+
 export const addr = ADDRESS;
 export const block = BLOCKNUMBER;
 
@@ -67,8 +82,13 @@ export const config = {
 		ethGetLogsBlockRange: 5000, // ~2s blocks
 	},
 	[avalanche.id]: {
-		// Public C-Chain RPC. Bloom/logs mismatches are handled in the ponder patch.
-		rpc: 'https://api.avax.network/ext/bc/C/rpc',
+		// Alchemy's Avalanche node intermittently returns logs inconsistent with block.logsBloom. Ponder retries
+		// for ~10 min and then crashes (exit 75). A second provider lets the retries land on a consistent node.
+		// Chain settings are not part of Ponder's build ID, so changing RPCs does not trigger a reindex.
+		rpc: [
+			`https://avax-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_RPC_KEY}`,
+			process.env.AVALANCHE_FALLBACK_RPC || 'https://api.avax.network/ext/bc/C/rpc',
+		],
 		maxRequestsPerSecond: parseInt(process.env.MAX_REQUESTS_PER_SECOND || '10'),
 		pollingInterval: parseInt(process.env.POLLING_INTERVAL_MS || '30000'),
 		ethGetLogsBlockRange: 5000, // ~2s blocks
@@ -147,7 +167,7 @@ export default createConfig({
 			maxRequestsPerSecond: config[avalanche.id].maxRequestsPerSecond,
 			pollingInterval: config[avalanche.id].pollingInterval,
 			ethGetLogsBlockRange: config[avalanche.id].ethGetLogsBlockRange,
-			rpc: http(config[avalanche.id].rpc),
+			rpc: config[avalanche.id].rpc,
 		},
 		[gnosis.name]: {
 			id: gnosis.id,

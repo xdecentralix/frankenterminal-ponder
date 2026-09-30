@@ -24,6 +24,8 @@ Create `.env.local` from `.env.example`:
 | `PORT`                    | `42069` | Server port                                                               |
 | `MAX_REQUESTS_PER_SECOND` | `10`    | RPC rate limit                                                            |
 | `POLLING_INTERVAL_MS`     | `30000` | Block polling interval (ms)                                               |
+| `LOG_EMPTY_BLOCKS`        | `false` | Set `true` to show `Indexed block` lines for blocks with no events        |
+| `AVALANCHE_FALLBACK_RPC`  | public  | Second Avalanche RPC next to Alchemy (default `api.avax.network`)         |
 | `ENABLE_TRANSACTION_LOG`  | `false` | Set `true` to write `AnalyticTransactionLog` / `AnalyticDailyLog` entries |
 
 ## Commands
