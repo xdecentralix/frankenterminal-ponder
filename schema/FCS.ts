@@ -91,3 +91,18 @@ export const FCSShot = onchainTable(
 		pk: primaryKey({ columns: [table.target, table.created, table.count] }),
 	})
 );
+
+// Daily sum of the redemption fee FCS pays into Equity (ZCHF) on withdraw/redeem.
+// Source: ZCHF Transfer(FCS -> Equity) in the tx logs of FCS:Withdraw.
+export const FCSFeeDaily = onchainTable(
+	'FCSFeeDaily',
+	(t) => ({
+		date: t.text().notNull(),
+		timestamp: t.bigint().notNull(),
+		amount: t.bigint().notNull(),
+		count: t.bigint().notNull(),
+	}),
+	(table) => ({
+		pk: primaryKey({ columns: [table.date] }),
+	})
+);

@@ -1,6 +1,13 @@
 import { ponder } from 'ponder:registry';
-import { CommonEcosystem, FCSDeposit, FCSShot, FCSTradeChart, FCSUnwrapped, FCSWithdraw, FCSWrapped } from 'ponder:schema';
+import { CommonEcosystem, FCSDeposit, FCSFeeDaily, FCSShot, FCSTradeChart, FCSUnwrapped, FCSWithdraw, FCSWrapped } from 'ponder:schema';
 import { normalizeAddress } from './utils/format';
+import { addr } from '../ponder.config';
+import { mainnet } from 'viem/chains';
+import { getAbiItem, toEventSelector, parseEventLogs, erc20Abi } from 'viem';
+import { FCSABI } from '@frankencoin/zchf';
+
+const ONE_DAY_SECONDS = 86400n;
+const WITHDRAW_TOPIC = toEventSelector(getAbiItem({ abi: FCSABI, name: 'Withdraw' }));
 
 /*
 Events
@@ -127,5 +134,39 @@ ponder.on('FCS:Withdraw', async ({ event, context }) => {
 			.insert(FCSTradeChart)
 			.values({ timestamp: time, lastPrice })
 			.onConflictDoUpdate(() => ({ lastPrice }));
+	}
+
+	// Fee: ZCHF Transfer(FCS -> Equity) emitted before this Withdraw. Bounded by the previous FCS Withdraw
+	// log so batched withdrawals in one tx are not double counted.
+	const { logs } = await context.client.getTransactionReceipt({ hash: event.transaction.hash });
+	const fcs = normalizeAddress(addr[mainnet.id].fcs);
+	const zchf = normalizeAddress(addr[mainnet.id].frankencoin);
+	const equity = normalizeAddress(addr[mainnet.id].equity);
+	const prevWithdraw = logs
+		.filter((l) => normalizeAddress(l.address) === fcs && l.topics[0] === WITHDRAW_TOPIC && l.logIndex < event.log.logIndex)
+		.reduce((max, l) => Math.max(max, l.logIndex), -1);
+
+	const transfers = parseEventLogs({
+		abi: erc20Abi,
+		eventName: 'Transfer',
+		logs: logs.filter(
+			(l) =>
+				normalizeAddress(l.address) === zchf &&
+				l.logIndex > prevWithdraw &&
+				l.logIndex < event.log.logIndex
+		),
+	});
+
+	const fee = transfers
+		.filter((t) => normalizeAddress(t.args.from) === fcs && normalizeAddress(t.args.to) === equity)
+		.reduce((sum, t) => sum + t.args.value, 0n);
+
+	if (fee > 0n) {
+		const day = time - (time % ONE_DAY_SECONDS);
+		const date = new Date(Number(day) * 1000).toISOString().split('T')[0]!;
+		await context.db
+			.insert(FCSFeeDaily)
+			.values({ date, timestamp: day, amount: fee, count: 1n })
+			.onConflictDoUpdate((current) => ({ amount: current.amount + fee, count: current.count + 1n }));
 	}
 });

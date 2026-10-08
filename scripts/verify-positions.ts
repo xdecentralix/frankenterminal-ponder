@@ -8,7 +8,7 @@
  *   npx tsx scripts/verify-positions.ts 0xf353...               # filter to one position
  */
 
-const LOCAL_URL = process.env.LOCAL_URL ?? 'https://ponder-prepare-frankencoincom.up.railway.app/';
+const LOCAL_URL = process.env.LOCAL_URL ?? 'https://ponder-version-frankencoincom.up.railway.app';
 const PROD_URL = process.env.PROD_URL ?? 'https://ponder.frankencoin.com';
 const POSITION_FILTER = process.argv[2]?.toLowerCase();
 
