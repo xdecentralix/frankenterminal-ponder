@@ -1,4 +1,4 @@
-import { ERC20ABI, PositionV1ABI } from '@frankencoin/zchf';
+import { ERC20ABI, MintingHubV1ABI, PositionV1ABI } from '@frankencoin/zchf';
 import { ponder } from 'ponder:registry';
 import {
 	CommonEcosystem,
@@ -9,7 +9,10 @@ import {
 } from 'ponder:schema';
 import { normalizeAddress, sanitizeDecimals, sanitizeText } from './utils/format';
 import { readWithFallback } from './utils/rpc';
-import { maxUint256 } from 'viem';
+import { getAbiItem, maxUint256, toEventSelector } from 'viem';
+import { indexMintingRevenue } from './lib/MintingRevenue';
+
+const SUCCEEDED_TOPIC_V1 = toEventSelector(getAbiItem({ abi: MintingHubV1ABI, name: 'ChallengeSucceeded' }));
 
 /*
 Events
@@ -407,4 +410,18 @@ ponder.on('MintingHubV1:ChallengeSucceeded', async ({ event, context }) => {
 	await context.db.update(MintingHubV1Status, { position: normalizeAddress(event.args.position) }).set((current) => ({
 		challengeSucceededBidsCounter: current.challengeSucceededBidsCounter + 1n,
 	}));
+
+	// ------------------------------------------------------------------
+	// REVENUE (daily): excess profit, released reserve and covered loss from the tx logs
+	await indexMintingRevenue({
+		context,
+		hub: 'V1',
+		kind: 'Challenge',
+		hubAddress: MintingHubV1.address,
+		reporter: MintingHubV1.address,
+		boundaryTopics: [SUCCEEDED_TOPIC_V1],
+		txHash: event.transaction.hash,
+		logIndex: event.log.logIndex,
+		timestamp: event.block.timestamp,
+	});
 });

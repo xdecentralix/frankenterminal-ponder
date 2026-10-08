@@ -9,6 +9,7 @@ export * from './schema/Frankencoin';
 export * from './schema/MinterGovernance';
 export * from './schema/MintingHubV1';
 export * from './schema/MintingHubV2';
+export * from './schema/MintingRevenue';
 export * from './schema/PositionAggregates';
 export * from './schema/PriceDiscovery';
 export * from './schema/RollerV2';

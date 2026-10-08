@@ -1,4 +1,4 @@
-import { ERC20ABI } from '@frankencoin/zchf';
+import { ERC20ABI, MintingHubV2ABI } from '@frankencoin/zchf';
 import { ponder } from 'ponder:registry';
 import {
 	CommonEcosystem,
@@ -10,7 +10,11 @@ import {
 import { normalizeAddress, sanitizeDecimals, sanitizeText } from './utils/format';
 import { resolvePositionOwner } from './utils/ownership';
 import { readWithFallback } from './utils/rpc';
-import { maxUint256 } from 'viem';
+import { getAbiItem, maxUint256, toEventSelector } from 'viem';
+import { indexMintingRevenue } from './lib/MintingRevenue';
+
+const SUCCEEDED_TOPIC_V2 = toEventSelector(getAbiItem({ abi: MintingHubV2ABI, name: 'ChallengeSucceeded' }));
+const FORCED_SALE_TOPIC_V2 = toEventSelector(getAbiItem({ abi: MintingHubV2ABI, name: 'ForcedSale' }));
 
 /*
 Events
@@ -19,6 +23,7 @@ MintingHubV2:PositionOpened
 MintingHubV2:ChallengeStarted
 MintingHubV2:ChallengeAverted
 MintingHubV2:ChallengeSucceeded
+MintingHubV2:ForcedSale
 */
 
 // event PositionOpened(address indexed owner, address indexed position, address original, address collateral);
@@ -436,4 +441,34 @@ ponder.on('MintingHubV2:ChallengeSucceeded', async ({ event, context }) => {
 	await context.db.update(MintingHubV2Status, { position: normalizeAddress(event.args.position) }).set((current) => ({
 		challengeSucceededBidsCounter: current.challengeSucceededBidsCounter + 1n,
 	}));
+
+	// ------------------------------------------------------------------
+	// REVENUE (daily): excess profit, released reserve and covered loss from the tx logs
+	await indexMintingRevenue({
+		context,
+		hub: 'V2',
+		kind: 'Challenge',
+		hubAddress: MintingHubV2.address,
+		reporter: MintingHubV2.address,
+		boundaryTopics: [SUCCEEDED_TOPIC_V2, FORCED_SALE_TOPIC_V2],
+		txHash: event.transaction.hash,
+		logIndex: event.log.logIndex,
+		timestamp: event.block.timestamp,
+	});
+});
+
+// event ForcedSale(address pos, uint256 amount, uint256 priceE36MinusDecimals);
+// Only a bad-debt sale (proceeds < minted, all collateral sold) reports Loss + reserve release, both from the position.
+ponder.on('MintingHubV2:ForcedSale', async ({ event, context }) => {
+	await indexMintingRevenue({
+		context,
+		hub: 'V2',
+		kind: 'ForcedSale',
+		hubAddress: context.contracts.MintingHubV2.address,
+		reporter: event.args.pos,
+		boundaryTopics: [SUCCEEDED_TOPIC_V2, FORCED_SALE_TOPIC_V2],
+		txHash: event.transaction.hash,
+		logIndex: event.log.logIndex,
+		timestamp: event.block.timestamp,
+	});
 });
