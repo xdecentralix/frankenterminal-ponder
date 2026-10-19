@@ -17,7 +17,7 @@ git merge upstream/main
 
 Keep upstream for schema, handlers, ABIs, and the `ponder` package version. Do **not** independently bump `ponder` — wait for Frankencoin and merge, otherwise future syncs fight `yarn.lock`.
 
-The only intentional fork overlay is `railway.json` (`ponder start --schema frankenterminal_v2`). Ponder 0.17 will not reuse a schema written by 0.15; the new name keeps the old index as a rollback target. If a merge touches `railway.json`, keep this start command.
+The only intentional fork overlay is `railway.json` (`ponder start --schema frankenterminal_v4`). Keep upstream for everything else. A new build that adds tables cannot reuse an existing schema: platform crash recovery deletes each table’s reorg relation, and the process exits when that relation is missing. `frankenterminal_v2` is the previous 0.17.0 index and stays in the database as a rollback. `frankenterminal_v3` was an abandoned October 2026 backfill. Bump the schema name again the next time a deploy adds tables. If a merge touches `railway.json`, keep this start command and `PONDER_EXPERIMENTAL_DB=platform`.
 
 GraphQL schema changes must land in the API (and dapp) in the same cycle. Handler-only fixes (insert vs update) do not.
 

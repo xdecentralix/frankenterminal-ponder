@@ -8,7 +8,7 @@ Ponder-based blockchain indexer for Frankencoin (ZCHF). Indexes events from Ethe
 
 This is a **fork** of `Frankencoin-ZCHF/ponder` (`upstream`). Match upstream for schema, handlers, ABIs, and the `ponder` package version so `frankenterminal-api` / `frankenterminal-dapp` stay compatible. Sync with `git fetch upstream && git merge upstream/main`. Do not independently bump `ponder`.
 
-**Fork overlay only:** `railway.json` start command uses `--schema frankenterminal_v2` (Ponder 0.17 cannot reuse a 0.15 schema). Preserve that on merges.
+**Fork overlay only:** `railway.json` start command uses `--schema frankenterminal_v4` and `PONDER_EXPERIMENTAL_DB=platform`. Do not point a build that adds tables at an existing schema: crash recovery deletes missing reorg tables and the process exits. `frankenterminal_v2` remains the rollback index. Bump the schema name when the next deploy adds tables.
 
 **Ponder:** 0.17.9 · **ABIs/addresses:** `@frankencoin/zchf`  
 **Deployments:** `ponder.frankencoin.com` (main) · `ponder.test.frankencoin.com` (test)
